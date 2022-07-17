@@ -1,9 +1,34 @@
-# 1. Import Flask
-from flask import Flask
+import numpy as np
+
+import sqlalchemy
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, func
+import datetime as dt
+
+from flask import Flask, jsonify
 
 
-# 2. Create an app
+#################################################
+# Database Setup
+#################################################
+engine = create_engine("sqlite:///resources/hawaii.sqlite")
+
+# reflect an existing database into a new model
+Base = automap_base()
+# reflect the tables
+Base.prepare(engine, reflect=True)
+
+# Save reference to the table
+measurement = Base.classes.measurement
+station = Base.classes.station
+
+
+#################################################
+# Flask Setup
+#################################################
 app = Flask(__name__)
+
 
 
 # 3. Define static routes
@@ -19,12 +44,28 @@ def index():
     )
 
 
-@app.route("/about")
-def about():
-    name = "Peleke"
-    location = "Tien Shan"
+@app.route("/api/v1.0/precipitation")
+def precipitation():
+    session = Session(engine)
 
-    return f"My name is {name}, and I live in {location}."
+   
+    # precipitation query - well the queries to get the last date / 12 months date
+
+    last_date_query = session.query(measurement.date).order_by(measurement.date.desc()).first()
+    last_date = dt.datetime.strptime(last_date_query[0], '%Y-%m-%d').date()
+    last_12_month_date = last_date - dt.timedelta(days=365)
+    
+    #resulting query
+    results = session.query(measurement.date, measurement.prcp).\
+    where(measurement.date >= last_12_month_date).all()
+
+    session.close()
+
+    # make a dictionary
+    date_prcp_dict = dict(results)
+
+    #return dictionary as json
+    return jsonify(date_prcp_dict)
 
 
 @app.route("/contact")
